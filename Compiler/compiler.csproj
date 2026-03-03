@@ -3,21 +3,150 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
+    <!-- Cấu hình cơ bản -->
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    
+    <!-- Tên assembly linh hoạt -->
     <AssemblyName>fminus</AssemblyName>
-    <PackageId>FSharpMinus</PackageId>
+    <RootNamespace>FSharpMinus</RootNamespace>
+    
+    <!-- Version tự động -->
     <Version>1.4.0</Version>
-    <Authors>Your Name</Authors>
-    <Description>F-- Programming Language - The backward step of humanity</Description>
-    <PackageTags>f--;programming-language;compiler;interpreter</PackageTags>
+    <FileVersion>1.4.0</FileVersion>
+    
+    <!-- Thông tin package -->
+    <Authors>Lập trình viên 13 tuổi</Authors>
+    <Company>F-- Lang</Company>
+    <Product>F-- Programming Language</Product>
+    <Description>F-- - The backward step of humanity, but forward step in creativity!</Description>
+    <Copyright>© 2024 F-- Lang</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/yourusername/FSharpMinus</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageTags>f--;programming-language;compiler;interpreter;fun</PackageTags>
+    
+    <!-- Build settings -->
+    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
+    <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    
+    <!-- Output paths -->
+    <BaseOutputPath>bin\</BaseOutputPath>
+    <BaseIntermediateOutputPath>obj\</BaseIntermediateOutputPath>
   </PropertyGroup>
 
+  <!-- 
+    ⭐⭐⭐ SIÊU THOẢI MÁI - Dùng wildcard ** ⭐⭐⭐
+    ** = bao gồm tất cả file trong tất cả thư mục con
+  -->
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
-    <!-- Thêm dependencies khác nếu cần -->
+    <!-- Include tất cả file .cs trong src/ và các thư mục con -->
+    <Compile Include="src/**/*.cs" />
+    
+    <!-- Include tất cả file .cs trong thư mục gốc và các thư mục con -->
+    <Compile Include="**/*.cs" Exclude="**/obj/**/*.cs;**/bin/**/*.cs" />
+    
+    <!-- Resources - thoải mái include -->
+    <EmbeddedResource Include="resources/**/*" />
+    <None Include="examples/**/*.f--" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="README.md" CopyToOutputDirectory="Always" />
+    <None Include="LICENSE" CopyToOutputDirectory="Always" />
   </ItemGroup>
+
+  <!-- Package references - cũng thoải mái nhưng có kiểm soát -->
+  <ItemGroup>
+    <!-- Cho CLI đẹp hơn -->
+    <PackageReference Include="Spectre.Console" Version="0.48.0" />
+    
+    <!-- Cho parsing nâng cao (nếu cần) -->
+    <!-- <PackageReference Include="Antlr4.Runtime.Standard" Version="4.13.1" /> -->
+    
+    <!-- Cho testing -->
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.8.0" />
+    <PackageReference Include="xunit" Version="2.6.1" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.5.3" />
+  </ItemGroup>
+
+  <!-- Conditional compilation cho các nền tảng khác nhau -->
+  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
+    <DefineConstants>WINDOWS</DefineConstants>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(OS)' != 'Windows_NT'">
+    <DefineConstants>LINUX</DefineConstants>
+  </PropertyGroup>
+
+  <!-- Debug vs Release -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <DebugType>full</DebugType>
+    <DebugSymbols>true</DebugSymbols>
+    <Optimize>false</Optimize>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+  </PropertyGroup>
+  
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <DefineConstants>TRACE</DefineConstants>
+    <DebugSymbols>false</DebugSymbols>
+  </PropertyGroup>
+
+  <!-- 
+    ⭐ Thoải mái hơn nữa: tự động tạo file .rsp cho response files 
+    Cho phép chạy với nhiều tham số dài dòng
+  -->
+  <Target Name="GenerateRspFile" AfterTargets="Build">
+    <WriteLinesToFile 
+      File="$(OutputPath)fminus.rsp"
+      Lines="@(FSharpMinusCommandLine)"
+      Overwrite="true" />
+  </Target>
+
+  <!-- 
+    ⭐⭐ THOẢI MÁI TỐI ĐA: Copy mọi thứ vào output 
+    Bao gồm cả file .f-- để chạy luôn không cần copy tay
+  -->
+  <Target Name="CopyEverything" AfterTargets="Build">
+    <ItemGroup>
+      <_AllFiles Include="**/*.f--" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_AllFiles)" 
+          DestinationFolder="$(OutputPath)" 
+          SkipUnchangedFiles="true" />
+  </Target>
+
+  <!-- 
+    ⭐⭐⭐ SIÊU CẤP VIP PRO: Tạo single executable 
+    Để F-- có thể chạy trên mọi máy không cần cài .NET
+  -->
+  <PropertyGroup>
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <PublishReadyToRun>true</PublishReadyToRun>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+  </PropertyGroup>
+
+  <!-- Runtime identifiers - chạy được trên mọi nền tảng -->
+  <PropertyGroup>
+    <RuntimeIdentifiers>win-x64;linux-x64;osx-x64</RuntimeIdentifiers>
+  </PropertyGroup>
+
+  <!-- 
+    ⭐ Custom build events - F-- style: 
+    In ra message ngầu lòi khi build
+  -->
+  <Target Name="FMinusMessage" BeforeTargets="Build">
+    <Message Text="╔═══════════════════════════════════════╗" Importance="high" />
+    <Message Text="║   🔥 BUILDING F-- COMPILER v1.4 🔥   ║" Importance="high" />
+    <Message Text="║     The backward step of humanity     ║" Importance="high" />
+    <Message Text="╚═══════════════════════════════════════╝" Importance="high" />
+  </Target>
+
+  <Target Name="FMinusComplete" AfterTargets="Build">
+    <Message Text="✅ Build thành công! Chạy thử với: dotnet run -- examples/hello.f--" Importance="high" />
+  </Target>
 
 </Project>
