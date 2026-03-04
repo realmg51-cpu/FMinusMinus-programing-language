@@ -20,21 +20,19 @@ jobs:
     name: 🚀 Publish F-- v${{ github.event.inputs.version || github.ref_name }}
     runs-on: ubuntu-latest
     permissions:
-      contents: write  # Cần để tạo release
-      packages: write  # Cần để push lên GitHub Packages
+      contents: write
+      packages: write
     
     steps:
       - name: 📥 Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # Lấy full history cho version info
+          fetch-depth: 0
       
       - name: 🔧 Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: |
-            8.0.x
-            7.0.x
+          dotnet-version: 8.0.x
       
       - name: 🔢 Get version
         id: version
@@ -47,14 +45,6 @@ jobs:
             echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
             echo "TAG=$GITHUB_REF_NAME" >> $GITHUB_OUTPUT
           fi
-      
-      - name: 📦 Restore with cache
-        uses: actions/cache@v3
-        with:
-          path: ~/.nuget/packages
-          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
-          restore-keys: |
-            ${{ runner.os }}-nuget-
       
       - name: 📦 Restore dependencies
         run: dotnet restore
@@ -75,20 +65,24 @@ jobs:
             -p:PackageReleaseNotes="${{ github.event.inputs.notes }}"
       
       - name: 📤 Push to NuGet.org
-        if: ${{ secrets.NUGET_API_KEY != '' }}
+        # ĐÃ SỬA: Dùng env để kiểm tra
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        if: env.NUGET_API_KEY != ''
         run: |
           dotnet nuget push nupkg/*.nupkg \
-            --api-key ${{ secrets.NUGET_API_KEY }} \
+            --api-key $NUGET_API_KEY \
             --source https://api.nuget.org/v3/index.json \
             --skip-duplicate
       
       - name: 📤 Push to GitHub Packages
-        if: ${{ secrets.GITHUB_TOKEN != '' }}
+        # GitHub token luôn có sẵn, không cần kiểm tra
         run: |
           dotnet nuget push nupkg/*.nupkg \
             --api-key ${{ secrets.GITHUB_TOKEN }} \
             --source "https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json" \
             --skip-duplicate
+        continue-on-error: true  # Không fail nếu push lên GitHub Packages lỗi
       
       - name: 🏷️ Create GitHub Release
         uses: softprops/action-gh-release@v1
