@@ -25,61 +25,31 @@ jobs:
       with:
         dotnet-version: 8.0.x
     
-    - name: 📦 Restore dependencies
-      run: dotnet restore
+    - name: 🔍 DEBUG - List all files
+      run: |
+        echo "=== Current directory: $(pwd) ==="
+        echo "=== All files and folders ==="
+        ls -la
+        echo "=== Test directory ==="
+        ls -la Test/ || echo "No Test directory"
+        echo "=== Compiler directory ==="
+        ls -la Compiler/ || echo "No Compiler directory"
+    
+    - name: 📦 Restore Compiler
+      run: dotnet restore Compiler/compiler.csproj
     
     - name: 🏗️ Build Compiler
-      run: dotnet build Compiler/compiler.csproj -c Release
+      run: dotnet build Compiler/compiler.csproj -c Release --no-restore
+    
+    - name: 📦 Restore Tests
+      run: dotnet restore Test/tests.csproj
     
     - name: 🏗️ Build Tests
-      run: dotnet build Test/tests.csproj -c Release
-    
-    - name: 🔍 Find test assemblies
-      id: find-tests
-      shell: bash
-      run: |
-        if [ -d "Test/bin/Release/net8.0" ]; then
-          echo "✅ Test directory found"
-          ls -la Test/bin/Release/net8.0/
-          echo "has_tests=true" >> $GITHUB_OUTPUT
-        else
-          echo "❌ Test directory not found"
-          echo "has_tests=false" >> $GITHUB_OUTPUT
-        fi
+      run: dotnet build Test/tests.csproj -c Release --no-restore
     
     - name: 🧪 Run Tests
-      if: steps.find-tests.outputs.has_tests == 'true'
-      continue-on-error: true
       run: |
         dotnet test Test/tests.csproj \
           -c Release \
           --no-build \
-          --verbosity normal \
-          --logger "trx;LogFileName=test-results.trx" \
-          --results-directory "${{ github.workspace }}/TestResults"
-    
-    - name: 📊 Check test results
-      id: check-results
-      shell: bash
-      run: |
-        if [ -d "${{ github.workspace }}/TestResults" ] && [ "$(ls -A ${{ github.workspace }}/TestResults)" ]; then
-          echo "✅ Test results found"
-          echo "has_results=true" >> $GITHUB_OUTPUT
-          ls -la ${{ github.workspace }}/TestResults/
-        else
-          echo "⚠️ No test results found"
-          echo "has_results=false" >> $GITHUB_OUTPUT
-        fi
-    
-    - name: 📤 Upload test results
-      if: steps.check-results.outputs.has_results == 'true'
-      uses: actions/upload-artifact@v4
-      with:
-        name: test-results-${{ matrix.os }}
-        path: ${{ github.workspace }}/TestResults/
-        retention-days: 30
-        if-no-files-found: ignore
-    
-    - name: ✅ Final status
-      run: |
-        echo "✅ Test workflow completed on ${{ matrix.os }}"
+          --verbosity normal
