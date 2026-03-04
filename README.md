@@ -56,13 +56,13 @@ start()
     return(0)  // Thành công
     end()      // Kết thúc chương trình
 }
-
+```
 🚀 Cài đặt & Sử dụng
 
 Yêu cầu hệ thống
 
-· .NET SDK 8.0 trở lên
-· Git (để clone repository)
+- .NET SDK 8.0 trở lên
+- Git (để clone repository)
 
 1. Clone repository
 
