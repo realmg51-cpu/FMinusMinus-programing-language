@@ -1,48 +1,70 @@
 # 🚀 F-- (F Minus Minus) Programming Language
 
 [![.NET Build](https://github.com/realmg51-cpu/F---Programming-Language/actions/workflows/dotnet-build.yml/badge.svg?branch=main)](https://github.com/realmg51-cpu/F---Programming-Language/actions/workflows/dotnet-build.yml)
-[![.NET Test](https://github.com/realmg51-cpu/F---Programming-Language/actions/workflows/dotnet-test.yaml/badge.svg)](https://github.com/realmg51-cpu/F---Programming-Language/actions/workflows/dotnet-test.yml)
+[![.NET Test](https://github.com/realmg51-cpu/F---Programming-Language/actions/workflows/dotnet-test.yml/badge.svg)](https://github.com/realmg51-cpu/F---Programming-Language/actions/workflows/dotnet-test.yml)
+[![codecov](https://codecov.io/gh/realmg51-cpu/F---Programming-Language/branch/main/graph/badge.svg)](https://codecov.io/gh/realmg51-cpu/F---Programming-Language)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![GitHub release](https://img.shields.io/github/v/release/realmg51-cpu/F---Programming-Language)](https://github.com/realmg51-cpu/F---Programming-Language/releases)
 [![GitHub stars](https://img.shields.io/github/stars/realmg51-cpu/F---Programming-Language?style=social)](https://github.com/realmg51-cpu/F---Programming-Language/stargazers)
 
-## 🌟 Giới thiệu
+---
+
+## 📋 Table of Contents
+- [🌟 Introduction](#-introduction)
+- [✨ Features](#-features)
+- [🎮 Quick Example](#-quick-example)
+- [🚀 Installation](#-installation)
+- [📖 Documentation](#-documentation)
+- [🧪 Testing](#-testing)
+- [📊 Code Coverage](#-code-coverage)
+- [📁 Project Structure](#-project-structure)
+- [🤝 Contributing](#-contributing)
+- [📜 License](#-license)
+- [👨‍💻 Author](#-author)
+
+---
+
+## 🌟 Introduction
 
 **F--** (F Minus Minus) - *"The backward step of humanity, but forward step in creativity!"*
 
-Được sáng tạo bởi một **lập trình viên 13 tuổi**, F-- là ngôn ngữ lập trình mang triết lý độc đáo:
+Created by a **13-year-old developer**, F-- is a unique programming language with a special philosophy:
 
-> *"Cứ code đi, compiler lo phần còn lại!"*
+> *"Just code, the compiler handles the rest!"*
 
-Dự án được xây dựng hoàn toàn bằng **.NET**, minh chứng cho việc tuổi tác không phải là rào cản để tạo ra những sản phẩm công nghệ thú vị.
+The project is built entirely with **.NET**, proving that age is not a barrier to creating interesting technology products.
 
-## ✨ Tính năng nổi bật
+---
 
-| Tính năng | Mô tả | Ví dụ |
-|-----------|-------|-------|
-| 🖥️ **Import siêu cấp** | Import cả computer, không cần quan tâm phần cứng! | `import computer` |
-| 🔤 **String Interpolation** | Chèn biến trực tiếp vào chuỗi | `$"Hello {name}!"` |
-| 🧠 **Quản lý bộ nhớ** | Kiểm tra bộ nhớ tự động | `memory.memoryleft` |
-| 📁 **File I/O trực quan** | Thao tác file dễ như ăn kẹo | `at "file.txt" { ... }` |
-| 🚨 **Tự động báo lỗi FMM** | Hệ thống mã lỗi F Minus Minus chuyên nghiệp | `fmm001: syntax error` |
+## ✨ Features
 
-## 🎮 Ví dụ nhanh
+| Feature | Description | Example |
+|---------|-------------|---------|
+| 🖥️ **Super Import** | Import the entire computer, no hardware worries! | `import computer` |
+| 🔤 **String Interpolation** | Embed variables directly in strings | `$"Hello {name}!"` |
+| 🧠 **Memory Management** | Automatic memory checking | `memory.memoryleft` |
+| 📁 **Intuitive File I/O** | File operations made simple | `at "file.txt" { ... }` |
+| 🚨 **FMM Error Codes** | Professional F Minus Minus error system | `fmm001: syntax error` |
 
-Đây là chương trình F-- hoàn chỉnh:
+---
+
+## 🎮 Quick Example
+
+Here's a complete F-- program:
 
 ```f--
 import computer
-
 start()
 {
-    // Khai báo biến
+    // Variable declaration
     name = "F--"
-    version = 1.4
+    version = 2.0
     
-    // In ra màn hình với interpolation
-    println($"Xin chào từ {name} v{version}!")
-    println($"Memory còn: {memory.memoryleft} MB")
+    // Print with interpolation
+    println($"Hello from {name} v{version}!")
+    println($"Memory left: {memory.memoryleft} MB")
     
-    // Thao tác với file
+    // File operations
     io.cfile("hello"(path "txt"))
     at "hello.txt"
     {
@@ -51,62 +73,142 @@ start()
         io.save()
     }
     
-    println("✅ File đã được tạo!")
+    println("✅ File created!")
     
-    return(0)  // Thành công
-    end()      // Kết thúc chương trình
+    return(0)  // Success
+    end()      // End program
 }
+🚀 Installation
+
+System Requirements
+
+· .NET SDK 8.0 or higher
+· Git (to clone repository)
+
+Option 1: Download from Release
+
+1. Go to Releases
+2. Download the latest Fminusminus-{version}.zip file
+3. Extract the archive
+4. Open terminal/command prompt in the extracted folder
+
+Windows:
+
+```cmd
+build(Windows).cmd
+dotnet run --project Compiler/compiler.csproj -- run examples/hello.f--
 ```
-🚀 Cài đặt & Sử dụng
 
-Yêu cầu hệ thống
+Linux / macOS:
 
-- .NET SDK 8.0 trở lên
-- Git (để clone repository)
+```bash
+chmod +x build\(Mac\,Linux\).sh
+./build\(Mac\,Linux\).sh
+dotnet run --project Compiler/compiler.csproj -- run examples/hello.f--
+```
 
-1. Clone repository
+Option 2: Clone from GitHub
 
 ```bash
 git clone https://github.com/realmg51-cpu/F---Programming-Language.git
 cd F---Programming-Language
-```
 
-2. Build project
-
-```bash
+# Build
 dotnet build
-```
 
-3. Chạy chương trình F-- đầu tiên
-
-```bash
-# Tạo file examples/hello.f-- với nội dung ở trên
-# Sau đó chạy:
+# Run F-- program
 dotnet run --project Compiler/compiler.csproj -- run examples/hello.f--
-```
 
-4. Xem cây cú pháp (AST)
-
-```bash
+# View AST tree
 dotnet run --project Compiler/compiler.csproj -- ast examples/hello.f--
 ```
 
-5. Chạy unit tests
+Option 3: Install via NuGet (Coming Soon)
 
 ```bash
-dotnet test
-```
+# Install as global tool
+dotnet tool install --global Fminusminus --version 2.0.0
 
-📦 Cài đặt qua NuGet (Sắp có)
-
-Package F-- sẽ sớm có mặt trên NuGet.org:
-
-```bash
-dotnet add package FSharpMinus --version 1.0.0
-```
-
-Sau đó bạn có thể dùng F-- như một global tool:
-
-```bash
+# Run directly from terminal
 fminus run hello.f--
 ```
+
+---
+
+📖 Documentation
+
+Basic Syntax
+
+```f--
+import computer           // Required first line
+start()                   // Entry point
+{
+    // Your code here
+    print("No newline")   // Print without newline
+    println("With newline") // Print with newline
+    memory.memoryleft      // Check memory
+    return(0)              // Return code
+    end()                  // Required end statement
+}
+```
+
+File I/O Operations
+
+```f--
+// Create a file
+io.cfile("filename"(path "txt"))
+
+// Write to file
+at "filename.txt"
+{
+    io.println("Content line 1")
+    io.print("No newline here")
+    io.println("New line")
+}
+
+// Save file
+io.save()
+// or save to specific path
+io.save("C:/myfolder/")
+```
+
+Memory Management
+
+```f--
+memory.memoryleft    // Check available memory
+memory.memoryused    // Check used memory
+memory.memorytotal   // Check total memory
+```
+
+---
+
+🧪 Testing
+
+Run the test suite to ensure everything works:
+
+```bash
+# Run all tests
+dotnet test
+
+# Run tests with coverage
+dotnet test --collect:"XPlat Code Coverage" --results-directory ./coverage
+
+# Run specific test
+dotnet test --filter "FullyQualifiedName~LexerTests"
+```
+
+---
+
+📊 Code Coverage
+
+https://codecov.io/gh/realmg51-cpu/F---Programming-Language/branch/main/graph/badge.svg
+
+We use Codecov to monitor code quality. Current coverage: ~85%
+
+Level Coverage Status
+🔴 Poor < 60% Needs urgent testing
+🟡 Average 60-75% Acceptable
+🟢 Good 75-85% Stable
+💚 Excellent 85% High quality
+
+---
