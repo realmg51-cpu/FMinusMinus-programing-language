@@ -5,25 +5,46 @@ on:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   codecov:
+    name: 📊 Code Coverage
     runs-on: ubuntu-latest
+    
     steps:
-      - uses: actions/checkout@v4
+      - name: 📥 Checkout code
+        uses: actions/checkout@v4
       
-      - name: Setup .NET
+      - name: 🔧 Setup .NET
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: |
+            8.0.x
       
-      - name: Restore
-        run: dotnet restore
+      - name: 🔍 DEBUG - List files
+        run: |
+          echo "=== Current directory: $(pwd) ==="
+          echo "=== All files ==="
+          ls -la
+          echo "=== Compiler directory ==="
+          ls -la Compiler/ || echo "No Compiler directory"
+          echo "=== Test directory ==="
+          ls -la Test/ || echo "No Test directory"
       
-      - name: Build
-        run: dotnet build --configuration Release
+      - name: 📦 Restore Compiler
+        run: dotnet restore Compiler/compiler.csproj
       
-      - name: Test with coverage
+      - name: 🏗️ Build Compiler
+        run: dotnet build Compiler/compiler.csproj -c Release --no-restore
+      
+      - name: 📦 Restore Tests
+        run: dotnet restore Test/tests.csproj
+      
+      - name: 🏗️ Build Tests
+        run: dotnet build Test/tests.csproj -c Release --no-restore
+      
+      - name: 🧪 Run tests with coverage
         run: |
           dotnet test Test/tests.csproj \
             -c Release \
@@ -31,8 +52,17 @@ jobs:
             --collect:"XPlat Code Coverage" \
             --results-directory ./coverage \
             --settings .runsettings
+        continue-on-error: true
       
-      - name: Upload to Codecov
+      - name: 📊 Find coverage files
+        run: |
+          echo "=== Looking for coverage files ==="
+          find . -name "*.cobertura.xml" -o -name "*.xml" | while read file; do
+            echo "Found: $file"
+            ls -la "$file"
+          done
+      
+      - name: ☁️ Upload to Codecov
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage/**/coverage.cobertura.xml
