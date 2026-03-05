@@ -1,17 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <RunSettings>
-  <RunConfiguration>
-    <MaxCpuCount>0</MaxCpuCount>
-    <ResultsDirectory>TestResults</ResultsDirectory>
-    <TargetFrameworkVersion>net8.0</TargetFrameworkVersion>
-  </RunConfiguration>
   <DataCollectionRunSettings>
     <DataCollectors>
-      <DataCollector friendlyName="X Plat Code Coverage">
+      <DataCollector friendlyName="XPlat code coverage">
         <Configuration>
           <Format>cobertura,lcov</Format>
-          <Exclude>[coverlet.*]?*,[*]FSharpMinus.Tests?*</Exclude>
-          <Include>[FSharpMinus.Compiler]*</Include>
+          <Exclude>
+            [*.Tests]*,
+            [xunit.*]*,
+            Fminusminus.Program
+          </Exclude>
+          <Include>
+            [Fminusminus]* 
+          </Include>
         </Configuration>
       </DataCollector>
     </DataCollectors>
