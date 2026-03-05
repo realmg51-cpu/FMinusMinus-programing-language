@@ -1,21 +1,17 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- Cấu hình cơ bản -->
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     
-    <!-- Tên assembly -->
     <AssemblyName>fminus</AssemblyName>
     <RootNamespace>Fminusminus</RootNamespace>
     
-    <!-- Version -->
     <Version>2.0.0</Version>
     <FileVersion>2.0.0</FileVersion>
     
-    <!-- Thông tin package -->
     <Authors>Lập trình viên 13 tuổi (RealMG)</Authors>
     <Company>F-- Lang</Company>
     <Product>F-- Programming Language</Product>
@@ -27,22 +23,14 @@
     <PackageTags>f--;fminus;programming-language;compiler;interpreter;fun</PackageTags>
     <PackageId>Fminusminus</PackageId>
     
-    <!-- Build settings -->
     <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
     <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     
-    <!-- Output paths -->
     <BaseOutputPath>bin\</BaseOutputPath>
     <BaseIntermediateOutputPath>obj\</BaseIntermediateOutputPath>
   </PropertyGroup>
 
-  <!-- 
-    ⚠️ ĐÃ XÓA phần Include thủ công các file .cs 
-    .NET SDK tự động include tất cả file .cs trong dự án
-  -->
-
-  <!-- Conditional compilation -->
   <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
     <DefineConstants>WINDOWS</DefineConstants>
   </PropertyGroup>
@@ -51,7 +39,6 @@
     <DefineConstants>LINUX</DefineConstants>
   </PropertyGroup>
 
-  <!-- Debug vs Release -->
   <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
     <DebugType>full</DebugType>
     <DebugSymbols>true</DebugSymbols>
@@ -66,7 +53,6 @@
     <DebugSymbols>false</DebugSymbols>
   </PropertyGroup>
 
-  <!-- Copy examples -->
   <Target Name="CopyExamples" AfterTargets="Build">
     <ItemGroup>
       <_ExampleFiles Include="..\examples\**\*.f--" />
@@ -76,19 +62,16 @@
           SkipUnchangedFiles="true" />
   </Target>
 
-  <!-- Cấu hình cho Global Tool -->
   <PropertyGroup>
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>fminus</ToolCommandName>
     <PackageOutputPath>./nupkg</PackageOutputPath>
   </PropertyGroup>
 
-  <!-- Runtime identifiers -->
   <PropertyGroup>
     <RuntimeIdentifiers>win-x64;linux-x64;osx-x64</RuntimeIdentifiers>
   </PropertyGroup>
 
-  <!-- Message khi build -->
   <Target Name="FMinusMessage" BeforeTargets="Build">
     <Message Text="╔═══════════════════════════════════════╗" Importance="high" />
     <Message Text="║   🔥 BUILDING F-- COMPILER v2.0 🔥   ║" Importance="high" />
