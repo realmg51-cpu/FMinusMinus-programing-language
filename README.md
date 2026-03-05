@@ -14,11 +14,8 @@
 - [✨ Features](#-features)
 - [🎮 Quick Example](#-quick-example)
 - [🚀 Installation](#-installation)
-- [📖 Documentation](#-documentation)
 - [🧪 Testing](#-testing)
 - [📊 Code Coverage](#-code-coverage)
-- [📁 Project Structure](#-project-structure)
-- [🤝 Contributing](#-contributing)
 - [📜 License](#-license)
 - [👨‍💻 Author](#-author)
 
@@ -214,3 +211,105 @@ Level Coverage Status
 💚 Excellent 85% High quality
 
 ---
+🤝 Contributing
+
+All contributions are welcome! Here's how you can help:
+
+1. 🐛 Report bugs: Create a new Issue
+2. 💡 Suggest features: Share ideas through Issues
+3. 🔧 Submit Pull Request: Fork the repo and create a PR
+
+Development Setup
+
+```bash
+# Fork and clone
+git clone https://github.com/YOUR_USERNAME/F---Programming-Language.git
+cd F---Programming-Language
+
+# Create branch
+git checkout -b feature/amazing-feature
+
+# Make changes and test
+dotnet test
+
+# Commit and push
+git commit -m "Add amazing feature"
+git push origin feature/amazing-feature
+
+# Open Pull Request
+```
+
+---
+
+📜 License
+
+This project is licensed under the MIT License. See the LICENSE file for details.
+
+```
+MIT License
+
+Copyright (c) 2026 RealMG
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction...
+```
+
+---
+
+👨‍💻 Author
+
+13-year-old developer - RealMG
+
+· 🌐 GitHub: @realmg51-cpu
+· 📧 Email: realmg51@gmail.com
+
+"Passion has no age, creativity has no limits!"
+
+---
+
+⭐ Support the project
+
+If you find F-- interesting, please:
+
+· ⭐ Star this repository
+· 🔄 Fork and develop further
+· 📢 Share with your friends
+
+---
+
+🎉 Acknowledgments
+
+· Thanks to the .NET community
+· Inspired by the desire to learn and create
+· Special thanks to everyone who supports this project
+
+---
+
+Made with ❤️ by a 13-year-old developer
+Last updated: March 2026
+
+---
+
+<div align="center">
+  <sub>Built with ☕ and curiosity</sub>
+</div>
+```
+
+---
+
+🚀 Các bước cập nhật:
+
+```bash
+# Clone repo
+git clone https://github.com/realmg51-cpu/F---Programming-Language.git
+cd F---Programming-Language
+
+# Tạo file README.md mới
+# Copy nội dung trên vào
+
+# Commit và push
+git add README.md
+git commit -m "Update README with comprehensive documentation"
+git push origin main
+```
