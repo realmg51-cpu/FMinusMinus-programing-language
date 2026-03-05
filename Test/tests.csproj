@@ -1,4 +1,3 @@
-
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
@@ -25,14 +24,5 @@
   <ItemGroup>
     <ProjectReference Include="..\Compiler\compiler.csproj" />
   </ItemGroup>
-
-  <!-- 
-    KHÔNG DÙNG comment có chứa -- hoặc - ở cuối
-    Tất cả comments đều phải viết đúng cú pháp XML
-  -->
-
-  <!-- Thêm reference cho testing -->
-  <!-- Cấu hình coverage cho tests -->
-  <!-- File này chứa unit tests cho F-- compiler -->
 
 </Project>
