@@ -1,4 +1,3 @@
-
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
@@ -38,15 +37,10 @@
     <BaseIntermediateOutputPath>obj\</BaseIntermediateOutputPath>
   </PropertyGroup>
 
-  <!-- Include các file .cs -->
-  <ItemGroup>
-    <Compile Include="**/*.cs" Exclude="**/obj/**/*.cs;**/bin/**/*.cs" />
-  </ItemGroup>
-
-  <!-- Package references -->
-  <ItemGroup>
-    <!-- Không cần thêm package nào khác vì project tự chứa -->
-  </ItemGroup>
+  <!-- 
+    ⚠️ ĐÃ XÓA phần Include thủ công các file .cs 
+    .NET SDK tự động include tất cả file .cs trong dự án
+  -->
 
   <!-- Conditional compilation -->
   <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
