@@ -222,7 +222,7 @@ All contributions are welcome! Here's how you can help:
 
 2. 💡 Suggest features: Share ideas through [Issue](.../.../Issues)
 
-3. 🔧 Submit Pull Request: Fork the repo and create a [Pull Request](.../.../pull)
+3. 🔧 Submit Pull Request: Fork the repo and create a [Pull Request](.../.../pulls)
 
 Development Setup
 
@@ -267,6 +267,7 @@ in the Software without restriction...
 13-year-old developer - RealMG
 
 · 🌐 GitHub: @realmg51-cpu
+
 · 📧 Email: realmg51@gmail.com
 
 "Passion has no age, creativity has no limits!"
