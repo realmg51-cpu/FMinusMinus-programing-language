@@ -9,8 +9,8 @@
     <AssemblyName>fminus</AssemblyName>
     <RootNamespace>Fminusminus</RootNamespace>
     
-    <Version>2.0.0</Version>
-    <FileVersion>2.0.0</FileVersion>
+    <Version>2.0.0-alpha0</Version>
+    <FileVersion>2.0.0-alpha0</FileVersion>
     
     <Authors>Lập trình viên 13 tuổi (RealMG)</Authors>
     <Company>F-- Lang</Company>
@@ -18,49 +18,14 @@
     <Description>F-- - The backward step of humanity, but forward step in creativity!</Description>
     <Copyright>© 2026 RealMG</Copyright>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <RepositoryUrl>https://github.com/realmg51-cpu/F---Programming-Language</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
-    <PackageTags>f--;fminus;programming-language;compiler;interpreter;fun</PackageTags>
+    <RepositoryUrl>https://github.com/realmg51-cpu/F--Programming-Language</RepositoryUrl>
+    <PackageTags>f--;fminus;programming-language;compiler;interpreter;alpha</PackageTags>
     <PackageId>Fminusminus</PackageId>
     
-    <AllowUnsafeBlocks>false</AllowUnsafeBlocks>
-    <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    
-    <BaseOutputPath>bin\</BaseOutputPath>
-    <BaseIntermediateOutputPath>obj\</BaseIntermediateOutputPath>
+    <!-- CHỈ GIỮ LẠI 1 RUNTIME HOẶC BỎ QUA -->
+    <!-- <RuntimeIdentifiers>win-x64;linux-x64;osx-x64</RuntimeIdentifiers>  -->
+    <!-- TẠM THỜI COMMENT LẠI ĐỂ PACK ĐƠN GIẢN -->
   </PropertyGroup>
-
-  <PropertyGroup Condition="'$(OS)' == 'Windows_NT'">
-    <DefineConstants>WINDOWS</DefineConstants>
-  </PropertyGroup>
-  
-  <PropertyGroup Condition="'$(OS)' != 'Windows_NT'">
-    <DefineConstants>LINUX</DefineConstants>
-  </PropertyGroup>
-
-  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
-    <DebugType>full</DebugType>
-    <DebugSymbols>true</DebugSymbols>
-    <Optimize>false</Optimize>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-  </PropertyGroup>
-  
-  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <DefineConstants>TRACE</DefineConstants>
-    <DebugSymbols>false</DebugSymbols>
-  </PropertyGroup>
-
-  <Target Name="CopyExamples" AfterTargets="Build">
-    <ItemGroup>
-      <_ExampleFiles Include="..\examples\**\*.f--" />
-    </ItemGroup>
-    <Copy SourceFiles="@(_ExampleFiles)" 
-          DestinationFolder="$(OutputPath)\examples\" 
-          SkipUnchangedFiles="true" />
-  </Target>
 
   <PropertyGroup>
     <PackAsTool>true</PackAsTool>
@@ -68,19 +33,14 @@
     <PackageOutputPath>./nupkg</PackageOutputPath>
   </PropertyGroup>
 
-  <PropertyGroup>
-    <RuntimeIdentifiers>win-x64;linux-x64;osx-x64</RuntimeIdentifiers>
-  </PropertyGroup>
-
-  <Target Name="FMinusMessage" BeforeTargets="Build">
-    <Message Text="╔═══════════════════════════════════════╗" Importance="high" />
-    <Message Text="║   🔥 BUILDING F-- COMPILER v2.0 🔥   ║" Importance="high" />
-    <Message Text="║     The backward step of humanity     ║" Importance="high" />
-    <Message Text="╚═══════════════════════════════════════╝" Importance="high" />
-  </Target>
-
-  <Target Name="FMinusComplete" AfterTargets="Build">
-    <Message Text="✅ Build thành công! Chạy thử với: dotnet run -- examples/hello.f--" Importance="high" />
+  <!-- Copy examples -->
+  <Target Name="CopyExamples" AfterTargets="Build">
+    <ItemGroup>
+      <_ExampleFiles Include="..\examples\**\*.f--" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_ExampleFiles)" 
+          DestinationFolder="$(OutputPath)\examples\" 
+          SkipUnchangedFiles="true" />
   </Target>
 
 </Project>
