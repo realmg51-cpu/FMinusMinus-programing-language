@@ -29,8 +29,6 @@ jobs:
           ls -la
           echo "=== Compiler directory ==="
           ls -la Compiler/ || echo "No Compiler directory"
-          echo "=== Test directory ==="
-          ls -la Test/ || echo "No Test directory"
       
       - name: 📦 Restore Compiler
         run: dotnet restore Compiler/compiler.csproj
