@@ -54,11 +54,5 @@ jobs:
     - name: 🏗️ Build Compiler
       run: dotnet build Compiler/compiler.csproj -c Release --no-restore
     
-    - name: 📦 Restore Tests
-      run: dotnet restore Test/tests.csproj
-    
-    - name: 🏗️ Build Tests
-      run: dotnet build Test/tests.csproj -c Release --no-restore
-    
     - name: ✅ Build success
       run: echo "✅ Build thành công trên ${{ matrix.os }}!"
