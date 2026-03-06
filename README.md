@@ -12,7 +12,6 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/realmg51-cpu/F---Programming-Language/pulls)
 [![Made with ❤️ by 13-year-old](https://img.shields.io/badge/Made%20with-%E2%9D%A4%EF%B8%8F%20by%2013--year--old-ff69b4.svg)](https://github.com/realmg51-cpu)
 
-<img src="https://raw.githubusercontent.com/realmg51-cpu/F---Programming-Language/main/docs/logo.png" alt="F-- Logo" width="200"/>
 
 ### *"The backward step of humanity, but forward step in creativity!"*
 
@@ -66,14 +65,15 @@ Built entirely with **.NET**, F-- aims to make programming fun, intuitive, and a
 
 Here's a complete F-- program that demonstrates the language's power and simplicity:
 
-``f--
+```
 import computer
 
 start()
 {
     // Variable declaration
     name = "F--"
-    version = 2.0
+    version = alpha0
+   
     luckyNumber = 42
     
     // Print with interpolation
@@ -99,11 +99,11 @@ start()
     return(0)  // Success
     end()      // End program
 }
-``
+```
 
 **Output:**
 ```
-Hello from F-- v2.0!
+Hello from F-- alpha0
 Memory left: 7823 MB
 The answer to everything multiplied by 2 is: 84
 ✅ File created successfully!
