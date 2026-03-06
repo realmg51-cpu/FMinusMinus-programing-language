@@ -1,7 +1,9 @@
 name: 📊 Code Coverage
 on:
-  push: { branches: [main] }
-  pull_request: { branches: [main] }
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
 
 jobs:
   codecov:
@@ -9,41 +11,47 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - uses: actions/setup-dotnet@v4
-        with: { dotnet-version: '8.0.x' }
+      - name: 🔧 Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
       
-      - name: 📦 Restore
+      - name: 📦 Restore dependencies
         run: dotnet restore Compiler/compiler.csproj
       
       - name: 🏗️ Build
-        run: dotnet build Compiler/compiler.csproj -c Release
+        run: dotnet build Compiler/compiler.csproj -c Release --no-restore
       
-      # 👇 THÊM BƯỚC NÀY VÀO
       - name: 🧪 Run tests with coverage
         run: |
           dotnet test Compiler/compiler.csproj \
             -c Release \
             --collect:"XPlat Code Coverage" \
             --results-directory ./TestResults \
-            --settings .runsettings
+            --settings .runsettings \
+            --no-build \
+            --verbosity normal
       
-      # 👇 KIỂM TRA FILE ĐÃ ĐƯỢC TẠO CHƯA
-      - name: 🔍 Verify coverage files
+      - name: 🔍 Find coverage files
         run: |
           echo "=== Current directory ==="
           pwd
           echo "=== TestResults content ==="
-          ls -la ./TestResults/ || echo "No TestResults yet"
-          echo "=== Looking for coverage files ==="
-          find . -name "*.cobertura.xml" -o -name "*.xml" | while read file; do
-            echo "Found: $file"
-            ls -la "$file"
-          done
+          ls -la ./TestResults/
+          echo "=== Looking for cobertura files ==="
+          find ./TestResults -name "*.cobertura.xml" -exec ls -la {} \;
+      
+      - name: 📁 Prepare coverage for upload
+        run: |
+          mkdir -p ./coverage-output
+          find ./TestResults -name "*.cobertura.xml" -exec cp {} ./coverage-output/ \;
+          echo "=== Coverage output ==="
+          ls -la ./coverage-output/
       
       - name: ☁️ Upload to Codecov
         uses: codecov/codecov-action@v4
         with:
-          files: ./TestResults/**/coverage.cobertura.xml
+          directory: ./coverage-output
           token: ${{ secrets.CODECOV_TOKEN }}
-          fail_ci_if_error: false  # Tạm thời false để không fail workflow
+          fail_ci_if_error: true
           verbose: true
