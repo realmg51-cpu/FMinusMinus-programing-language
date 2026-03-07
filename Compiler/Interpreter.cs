@@ -1,135 +1,192 @@
 using System;
+using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
+using Fminusminus.Errors;
+using Fminusminus.Utils;
 
-namespace Fminusminus.Utils
+namespace Fminusminus
 {
-    /// <summary>
-    /// System information utility for F--
-    /// </summary>
-    public class SystemInfo
+    public partial class Interpreter
     {
-        public string OS { get; }
-        public string OSVersion { get; }
-        public string MachineName { get; }
-        public int ProcessorCount { get; }
-        public long TotalMemory { get; }
-        public long AvailableMemory { get; }
-        public string DotNetVersion { get; }
-        public string UserName { get; }
-        public bool Is64Bit { get; }
-        public string CurrentDirectory { get; }
-        public DateTime StartupTime { get; }
+        private Dictionary<string, object> _variables = new();
+        private string _currentFile = null;
+        private bool _inFileBlock = false;
+        private List<string> _fileContent = new();
+        private SystemInfo _systemInfo = null;
 
-        public SystemInfo()
+        // Memory simulation
+        private long _totalMemory = 1024;
+        private long _usedMemory = 256;
+        private long _memoryLeft => _totalMemory - _usedMemory;
+
+        public int Execute(ProgramNode program)
         {
-            OS = GetOS();
-            OSVersion = Environment.OSVersion.ToString();
-            MachineName = Environment.MachineName;
-            ProcessorCount = Environment.ProcessorCount;
-            TotalMemory = GetTotalMemory();
-            AvailableMemory = GetAvailableMemory();
-            DotNetVersion = Environment.Version.ToString();
-            UserName = Environment.UserName;
-            Is64Bit = Environment.Is64BitOperatingSystem;
-            CurrentDirectory = Environment.CurrentDirectory;
-            StartupTime = DateTime.Now;
+            if (!program.HasImportComputer)
+                throw new Exception("Missing 'import computer'");
+            
+            _systemInfo = new SystemInfo();
+            
+            foreach (var statement in program.StartBlock.Statements)
+            {
+                ExecuteStatement(statement);
+            }
+            
+            return 0;
         }
 
-        private string GetOS()
+        private void ExecuteStatement(StatementNode statement)
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                return "Windows";
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                return "Linux";
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                return "macOS";
-            return "Unknown";
+            switch (statement)
+            {
+                case PrintlnStatementNode println:
+                    ExecutePrintln(println);
+                    break;
+                    
+                case PrintStatementNode print:
+                    ExecutePrint(print);
+                    break;
+                    
+                case ReturnStatementNode ret:
+                    // Handled by caller
+                    break;
+                    
+                case EndStatementNode end:
+                    // Just marks the end
+                    break;
+                    
+                case AssignmentNode assign:
+                    ExecuteAssignment(assign);
+                    break;
+                    
+                case IOStatementNode io:
+                    ExecuteIO(io);
+                    break;
+                    
+                case ComputerStatementNode computer:
+                    ExecuteComputer(computer);
+                    break;
+                    
+                case AtBlockNode atBlock:
+                    ExecuteAtBlock(atBlock);
+                    break;
+                    
+                case MemoryStatementNode memory:
+                    ExecuteMemory(memory);
+                    break;
+                    
+                default:
+                    throw new Exception($"Unknown statement type: {statement?.GetType().Name}");
+            }
         }
 
-        private long GetTotalMemory()
+        private void ExecuteComputer(ComputerStatementNode computer)
         {
+            if (computer.Property == "systeminfo" && computer.Operation == "get")
+            {
+                _variables["systeminfo"] = _systemInfo;
+                Console.WriteLine(_systemInfo.ToString());
+            }
+        }
+
+        private void ExecuteIO(IOStatementNode io)
+        {
+            switch (io.Operation)
+            {
+                case "cfile":
+                    ExecuteCreateFile(io);
+                    break;
+                    
+                case "println":
+                case "print":
+                    ExecuteFilePrint(io);
+                    break;
+                    
+                case "save":
+                    ExecuteFileSave(io);
+                    break;
+                    
+                case "listfile":
+                    ExecuteListFile(io);
+                    break;
+                    
+                default:
+                    throw new Exception($"Unknown IO operation: {io.Operation}");
+            }
+        }
+
+        private void ExecuteListFile(IOStatementNode io)
+        {
+            string path = ".";
+            
+            // Parse parameters
+            if (io.Parameters.Count > 0)
+            {
+                if (io.Parameters[0] is VariableNode var && var.Name == "path")
+                {
+                    if (io.Parameters.Count > 1)
+                    {
+                        if (io.Parameters[1] is StringLiteralNode strNode)
+                        {
+                            path = strNode.Value;
+                        }
+                        else if (io.Parameters[1] is VariableNode osVar && osVar.Name == "OS" && 
+                                 io.Parameters.Count > 2 && io.Parameters[2] is VariableNode pathVar && pathVar.Name == "path")
+                        {
+                            path = SystemInfo.GetOSPath();
+                        }
+                    }
+                }
+            }
+            
             try
             {
-                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                // Validate path
+                if (string.IsNullOrWhiteSpace(path))
+                    throw FileError.NotFound(path);
+                
+                // Check for invalid characters
+                if (FileError.HasInvalidCharacters(path))
+                    throw FileError.InvalidCharacters(path);
+                
+                // Check if directory exists
+                if (!Directory.Exists(path))
+                    throw FileError.NotFound(path);
+                
+                // Check access permission
+                try
                 {
-                    var gcMemoryInfo = GC.GetGCMemoryInfo();
-                    return gcMemoryInfo.TotalAvailableMemoryBytes;
+                    Directory.GetFiles(path);
                 }
-                else
+                catch (UnauthorizedAccessException)
                 {
-                    // Fallback for Linux/macOS
-                    return GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+                    throw FileError.AccessDenied(path);
                 }
+                
+                var files = Directory.GetFiles(path);
+                var dirs = Directory.GetDirectories(path);
+                
+                Console.WriteLine($"\n📁 Contents of '{path}':");
+                Console.WriteLine($"   Total: {dirs.Length} folders, {files.Length} files\n");
+                
+                foreach (var dir in dirs)
+                    Console.WriteLine($"   📂 {Path.GetFileName(dir)}/");
+                foreach (var file in files)
+                    Console.WriteLine($"   📄 {Path.GetFileName(file)}");
+                    
+                Console.WriteLine();
             }
-            catch
+            catch (FileError)
             {
-                return 16L * 1024 * 1024 * 1024; // 16GB default
+                throw;
+            }
+            catch (Exception ex)
+            {
+                throw new Exception($"Error listing directory: {ex.Message}");
             }
         }
 
-        private long GetAvailableMemory()
-        {
-            try
-            {
-                // Simple approximation - in real scenario, use platform-specific APIs
-                var gcMemoryInfo = GC.GetGCMemoryInfo();
-                return gcMemoryInfo.TotalAvailableMemoryBytes - GC.GetTotalMemory(false);
-            }
-            catch
-            {
-                return 8L * 1024 * 1024 * 1024; // 8GB default
-            }
-        }
-
-        /// <summary>
-        /// Get OS-specific path
-        /// </summary>
-        public static string GetOSPath()
-        {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                return "C:\\";
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                return "/home";
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                return "/Users";
-            else
-                return ".";
-        }
-
-        /// <summary>
-        /// Format memory to human readable string
-        /// </summary>
-        private string FormatMemory(long bytes)
-        {
-            string[] sizes = { "B", "KB", "MB", "GB", "TB" };
-            double len = bytes;
-            int order = 0;
-            while (len >= 1024 && order < sizes.Length - 1)
-            {
-                order++;
-                len = len / 1024;
-            }
-            return $"{len:0.##} {sizes[order]}";
-        }
-
-        public override string ToString()
-        {
-            return $@"
-╔══════════════════════════════════════════╗
-║         F-- SYSTEM INFORMATION           ║
-╠══════════════════════════════════════════╣
-║ OS: {OS,-32} ║
-║ Version: {OSVersion,-30} ║
-║ Machine: {MachineName,-30} ║
-║ CPU Cores: {ProcessorCount,-27} ║
-║ RAM Total: {FormatMemory(TotalMemory),-27} ║
-║ RAM Free: {FormatMemory(AvailableMemory),-28} ║
-║ .NET: {DotNetVersion,-32} ║
-║ User: {UserName,-32} ║
-║ 64-bit: {Is64Bit,-29} ║
-║ Directory: {CurrentDirectory,-27} ║
-║ Started: {StartupTime:HH:mm:ss,-28} ║
-╚══════════════════════════════════════════╝";
-        }
+        // ... (rest of existing methods)
     }
 }
