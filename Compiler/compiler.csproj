@@ -9,8 +9,9 @@
     <AssemblyName>fminus</AssemblyName>
     <RootNamespace>Fminusminus</RootNamespace>
     
-    <Version>2.0.0-alpha0</Version>
-    <FileVersion>2.0.0-alpha0</FileVersion>
+    <!-- ĐÃ SỬA: Thêm .0 cho revision -->
+    <Version>2.0.0.0-alpha0</Version>
+    <FileVersion>2.0.0.0-alpha0</FileVersion>
     
     <Authors>Lập trình viên 13 tuổi (RealMG)</Authors>
     <Company>F-- Lang</Company>
@@ -21,10 +22,6 @@
     <RepositoryUrl>https://github.com/realmg51-cpu/F--Programming-Language</RepositoryUrl>
     <PackageTags>f--;fminus;programming-language;compiler;interpreter;alpha</PackageTags>
     <PackageId>Fminusminus</PackageId>
-    
-    <!-- CHỈ GIỮ LẠI 1 RUNTIME HOẶC BỎ QUA -->
-    <!-- <RuntimeIdentifiers>win-x64;linux-x64;osx-x64</RuntimeIdentifiers>  -->
-    <!-- TẠM THỜI COMMENT LẠI ĐỂ PACK ĐƠN GIẢN -->
   </PropertyGroup>
 
   <PropertyGroup>
@@ -33,7 +30,6 @@
     <PackageOutputPath>./nupkg</PackageOutputPath>
   </PropertyGroup>
 
-  <!-- Copy examples -->
   <Target Name="CopyExamples" AfterTargets="Build">
     <ItemGroup>
       <_ExampleFiles Include="..\examples\**\*.f--" />
