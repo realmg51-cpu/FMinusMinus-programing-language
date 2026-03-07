@@ -1,0 +1,34 @@
+import computer
+start()
+{
+    println("=== F-- Advanced File I/O Demo ===")
+    println()
+    
+    // Create multiple files
+    files = 3
+    i = 1
+    
+    while i <= files
+    {
+        filename = "test"
+        io.cfile(filename)
+        
+        at filename + ".txt"
+        {
+            io.println($"This is file number {i}")
+            io.println($"Created by F-- v2.0")
+            io.println($"Timestamp: 2026")
+        }
+        
+        io.save()
+        println($"✅ Created file {i}: {filename}{i}.txt")
+        
+        i = i + 1
+    }
+    
+    println()
+    println("🎉 All files created successfully!")
+    
+    return(0)
+    end()
+}
