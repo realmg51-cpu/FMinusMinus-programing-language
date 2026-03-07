@@ -1,12 +1,13 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 
 namespace Fminusminus.Utils.Package
 {
     /// <summary>
-    /// Manages all F-- packages - only loads what user imports
+    /// Manages all F-- packages with security
     /// </summary>
     public class PackageManager
     {
@@ -14,17 +15,18 @@ namespace Fminusminus.Utils.Package
         private readonly Dictionary<string, BasePackage> _loadedPackages = new();
         private readonly Dictionary<string, Type> _availablePackages = new();
         
+        private int _totalPackageOperations;
+        private const int MaxPackageOperations = 10000;
+        private readonly string _logFile;
+
         private PackageManager()
         {
-            // Scan for available packages
+            _logFile = Path.Combine(Environment.CurrentDirectory, "fminus-package.log");
             DiscoverPackages();
         }
-        
+
         public static PackageManager Instance => _instance ??= new PackageManager();
-        
-        /// <summary>
-        /// Discover all available packages in the assembly
-        /// </summary>
+
         private void DiscoverPackages()
         {
             var packageTypes = Assembly.GetExecutingAssembly()
@@ -43,30 +45,61 @@ namespace Fminusminus.Utils.Package
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"⚠️ Failed to load package {type.Name}: {ex.Message}");
+                    LogError($"Failed to load package {type.Name}", ex);
                 }
             }
         }
-        
-        /// <summary>
-        /// Import a package by name
-        /// </summary>
+
+        private bool CheckRateLimit()
+        {
+            if (_totalPackageOperations++ > MaxPackageOperations)
+            {
+                LogError("Rate limit exceeded", null);
+                return false;
+            }
+            return true;
+        }
+
+        private void LogError(string message, Exception? ex)
+        {
+            try
+            {
+                string logMessage = $"{DateTime.Now}: {message}";
+                if (ex != null)
+                    logMessage += $" - {ex.Message}";
+                
+                File.AppendAllText(_logFile, logMessage + "\n");
+            }
+            catch
+            {
+                // Can't log, ignore
+            }
+        }
+
         public BasePackage? ImportPackage(string packageName)
         {
+            if (!CheckRateLimit()) return null;
+
+            // Validate package name
+            if (string.IsNullOrEmpty(packageName) || packageName.Length > 100)
+            {
+                LogError($"Invalid package name: {packageName}", null);
+                return null;
+            }
+
             // Check if already loaded
             if (_loadedPackages.TryGetValue(packageName, out var loadedPackage))
             {
-                Console.WriteLine($"📦 Package '{packageName}' already loaded (v{loadedPackage.Version})");
                 return loadedPackage;
             }
-            
+
             // Check if available
             if (!_availablePackages.TryGetValue(packageName, out var packageType))
             {
-                Console.WriteLine($"❌ Package '{packageName}' not found");
+                LogError($"Package '{packageName}' not found", null);
                 return null;
             }
-            
+
             // Load package
             try
             {
@@ -75,75 +108,64 @@ namespace Fminusminus.Utils.Package
                 {
                     package.Initialize();
                     _loadedPackages[packageName] = package;
-                    Console.WriteLine($"📦 Loaded package '{packageName}' v{package.Version}");
                     return package;
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"❌ Failed to load package '{packageName}': {ex.Message}");
+                LogError($"Failed to load package '{packageName}'", ex);
             }
-            
+
             return null;
         }
-        
-        /// <summary>
-        /// Import multiple packages
-        /// </summary>
+
         public void ImportPackages(IEnumerable<string> packageNames)
         {
-            foreach (var name in packageNames)
+            foreach (var name in packageNames.Distinct().Take(10)) // Max 10 packages
             {
                 ImportPackage(name);
             }
         }
-        
-        /// <summary>
-        /// Check if package is loaded
-        /// </summary>
+
         public bool IsPackageLoaded(string packageName)
         {
             return _loadedPackages.ContainsKey(packageName);
         }
-        
-        /// <summary>
-        /// Get loaded package
-        /// </summary>
+
         public BasePackage? GetPackage(string packageName)
         {
             return _loadedPackages.TryGetValue(packageName, out var package) ? package : null;
         }
-        
-        /// <summary>
-        /// Call a method in a package
-        /// </summary>
+
         public object? CallMethod(string packageName, string methodName, object?[] args)
         {
+            if (!CheckRateLimit()) return null;
+
             var package = GetPackage(packageName);
             if (package == null)
             {
+                LogError($"Package '{packageName}' not loaded", null);
                 throw new Exception($"Package '{packageName}' not loaded. Did you forget to import it?");
             }
-            
-            return package.CallMethod(methodName, args);
+
+            try
+            {
+                return package.CallMethod(methodName, args);
+            }
+            catch (Exception ex)
+            {
+                LogError($"Error calling {packageName}.{methodName}", ex);
+                throw;
+            }
         }
-        
-        /// <summary>
-        /// Get all loaded packages
-        /// </summary>
+
         public IEnumerable<string> GetLoadedPackages() => _loadedPackages.Keys;
-        
-        /// <summary>
-        /// Get all available packages
-        /// </summary>
         public IEnumerable<string> GetAvailablePackages() => _availablePackages.Keys;
-        
-        /// <summary>
-        /// Clear all loaded packages
-        /// </summary>
+
         public void ClearPackages()
         {
             _loadedPackages.Clear();
+            _totalPackageOperations = 0;
         }
     }
 }
