@@ -1,5 +1,7 @@
 using System;
+using System.IO;
 using System.Runtime.InteropServices;
+using System.Text.RegularExpressions;
 
 namespace Fminusminus.Utils
 {
@@ -18,12 +20,13 @@ namespace Fminusminus.Utils
         public string UserName { get; }
         public bool Is64Bit { get; }
         public string CurrentDirectory { get; }
-        public DateTime StartupTime { get; }
+        public DateTime ObjectCreatedTime { get; }
+        public TimeSpan SystemUptime => TimeSpan.FromMilliseconds(Environment.TickCount64);
 
         public SystemInfo()
         {
             OS = GetOS();
-            OSVersion = Environment.OSVersion.ToString();
+            OSVersion = GetFormattedOSVersion();
             MachineName = Environment.MachineName;
             ProcessorCount = Environment.ProcessorCount;
             TotalMemory = GetTotalMemory();
@@ -32,7 +35,7 @@ namespace Fminusminus.Utils
             UserName = Environment.UserName;
             Is64Bit = Environment.Is64BitOperatingSystem;
             CurrentDirectory = Environment.CurrentDirectory;
-            StartupTime = DateTime.Now;
+            ObjectCreatedTime = DateTime.Now;
         }
 
         private string GetOS()
@@ -46,20 +49,77 @@ namespace Fminusminus.Utils
             return "Unknown";
         }
 
+        private string GetFormattedOSVersion()
+        {
+            try
+            {
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    var version = Environment.OSVersion.Version;
+                    return $"Windows {version.Major}.{version.Minor}.{version.Build}";
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    if (File.Exists("/etc/os-release"))
+                    {
+                        var lines = File.ReadAllLines("/etc/os-release");
+                        foreach (var line in lines)
+                        {
+                            if (line.StartsWith("PRETTY_NAME="))
+                                return line.Substring(13).Trim('"');
+                        }
+                    }
+                    return "Linux";
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                {
+                    return $"macOS {Environment.OSVersion.Version}";
+                }
+            }
+            catch { }
+            return Environment.OSVersion.ToString();
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MemoryStatus
+        {
+            public uint dwLength;
+            public uint dwMemoryLoad;
+            public ulong ullTotalPhys;
+            public ulong ullAvailPhys;
+            public ulong ullTotalPageFile;
+            public ulong ullAvailPageFile;
+            public ulong ullTotalVirtual;
+            public ulong ullAvailVirtual;
+            public ulong ullAvailExtendedVirtual;
+        }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern bool GlobalMemoryStatusEx(ref MemoryStatus lpBuffer);
+
         private long GetTotalMemory()
         {
             try
             {
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
-                    var gcMemoryInfo = GC.GetGCMemoryInfo();
-                    return gcMemoryInfo.TotalAvailableMemoryBytes;
+                    var memoryStatus = new MemoryStatus { dwLength = (uint)Marshal.SizeOf<MemoryStatus>() };
+                    if (GlobalMemoryStatusEx(ref memoryStatus))
+                        return (long)memoryStatus.ullTotalPhys;
                 }
-                else
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && File.Exists("/proc/meminfo"))
                 {
-                    // Fallback for Linux/macOS
-                    return GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
+                    string memInfo = File.ReadAllText("/proc/meminfo");
+                    var match = Regex.Match(memInfo, @"MemTotal:\s+(\d+)");
+                    if (match.Success && long.TryParse(match.Groups[1].Value, out long kb))
+                        return kb * 1024;
                 }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                {
+                    return GetMacOSTotalMemory();
+                }
+                
+                return GC.GetGCMemoryInfo().TotalAvailableMemoryBytes;
             }
             catch
             {
@@ -71,29 +131,102 @@ namespace Fminusminus.Utils
         {
             try
             {
-                // Simple approximation - in real scenario, use platform-specific APIs
-                var gcMemoryInfo = GC.GetGCMemoryInfo();
-                return gcMemoryInfo.TotalAvailableMemoryBytes - GC.GetTotalMemory(false);
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    var memoryStatus = new MemoryStatus { dwLength = (uint)Marshal.SizeOf<MemoryStatus>() };
+                    if (GlobalMemoryStatusEx(ref memoryStatus))
+                        return (long)memoryStatus.ullAvailPhys;
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && File.Exists("/proc/meminfo"))
+                {
+                    string memInfo = File.ReadAllText("/proc/meminfo");
+                    
+                    // Try MemAvailable first (Linux 3.14+)
+                    var match = Regex.Match(memInfo, @"MemAvailable:\s+(\d+)");
+                    if (match.Success && long.TryParse(match.Groups[1].Value, out long kb))
+                        return kb * 1024;
+                    
+                    // Fallback to MemFree
+                    match = Regex.Match(memInfo, @"MemFree:\s+(\d+)");
+                    if (match.Success && long.TryParse(match.Groups[1].Value, out long freeKb))
+                        return freeKb * 1024;
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                {
+                    return GetMacOSAvailableMemory();
+                }
+                
+                return 8L * 1024 * 1024 * 1024;
             }
             catch
             {
-                return 8L * 1024 * 1024 * 1024; // 8GB default
+                return 8L * 1024 * 1024 * 1024;
             }
         }
 
+        private long GetMacOSTotalMemory()
+        {
+            try
+            {
+                var process = new System.Diagnostics.Process
+                {
+                    StartInfo = new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = "sysctl",
+                        Arguments = "hw.memsize",
+                        UseShellExecute = false,
+                        RedirectStandardOutput = true,
+                        CreateNoWindow = true
+                    }
+                };
+                process.Start();
+                string output = process.StandardOutput.ReadToEnd();
+                process.WaitForExit();
+                
+                if (long.TryParse(output.Replace("hw.memsize:", "").Trim(), out long bytes))
+                    return bytes;
+            }
+            catch { }
+            return 16L * 1024 * 1024 * 1024;
+        }
+
+        private long GetMacOSAvailableMemory()
+        {
+            try
+            {
+                long total = GetMacOSTotalMemory();
+                // Rough estimate - in real app, use host_statistics64 or vm_stat
+                return total / 4;
+            }
+            catch { }
+            return 8L * 1024 * 1024 * 1024;
+        }
+
         /// <summary>
-        /// Get OS-specific path
+        /// Get OS-specific user path
         /// </summary>
         public static string GetOSPath()
         {
-            if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
-                return "C:\\";
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
-                return "/home";
-            else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                return "/Users";
-            else
-                return ".";
+            try
+            {
+                if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+                {
+                    string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                    return string.IsNullOrEmpty(userProfile) ? "C:\\Users\\Public" : userProfile;
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
+                {
+                    string home = Environment.GetEnvironmentVariable("HOME");
+                    return string.IsNullOrEmpty(home) ? "/home" : home;
+                }
+                else if (RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
+                {
+                    string home = Environment.GetEnvironmentVariable("HOME");
+                    return string.IsNullOrEmpty(home) ? "/Users" : home;
+                }
+            }
+            catch { }
+            return Environment.CurrentDirectory;
         }
 
         /// <summary>
@@ -101,13 +234,15 @@ namespace Fminusminus.Utils
         /// </summary>
         private string FormatMemory(long bytes)
         {
+            if (bytes <= 0) return "0 B";
+            
             string[] sizes = { "B", "KB", "MB", "GB", "TB" };
             double len = bytes;
             int order = 0;
             while (len >= 1024 && order < sizes.Length - 1)
             {
                 order++;
-                len = len / 1024;
+                len /= 1024;
             }
             return $"{len:0.##} {sizes[order]}";
         }
@@ -128,7 +263,7 @@ namespace Fminusminus.Utils
 ║ User: {UserName,-32} ║
 ║ 64-bit: {Is64Bit,-29} ║
 ║ Directory: {CurrentDirectory,-27} ║
-║ Started: {StartupTime:HH:mm:ss,-28} ║
+║ Uptime: {SystemUptime:hh\:mm\:ss,-28} ║
 ╚══════════════════════════════════════════╝";
         }
     }
