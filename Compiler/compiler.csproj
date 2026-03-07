@@ -128,7 +128,7 @@
     ⭐ Package references - nếu cần thêm thư viện bên ngoài 
   -->
   <ItemGroup>
-    <!-- Không có dependencies bên ngoài - F-- tự chủ! -->
+    <!-- Không có dependencies bên ngoài tự chủ! -->
   </ItemGroup>
 
   <!-- 
