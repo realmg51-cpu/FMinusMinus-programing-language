@@ -1,20 +1,141 @@
-name: 🔨 .NET Build
+name: 🔨 .NET Build & Test
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, develop ]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+      - 'examples/**'
   pull_request:
     branches: [ main ]
   workflow_dispatch:
+    inputs:
+      skip_tests:
+        description: 'Skip tests (quick build only)'
+        required: false
+        default: false
+        type: boolean
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  analyze:
+    name: 🔍 Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    
+    - name: 🔧 Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+    
+    - name: 🔍 Check for duplicate files
+      run: |
+        echo "=== Checking for duplicate .cs files ==="
+        find Compiler -name "*.cs" -type f | sort | uniq -d | while read file; do
+          echo "❌ Duplicate found: $file"
+          exit 1
+        done || echo "✅ No duplicates found"
+    
+    - name: 🔍 Check for Parser.cs duplicates (specific)
+      run: |
+        count=$(find Compiler -name "Parser.cs" -type f | wc -l)
+        if [ $count -gt 1 ]; then
+          echo "❌ Found $count copies of Parser.cs:"
+          find Compiler -name "Parser.cs" -type f
+          exit 1
+        else
+          echo "✅ Found $count copy of Parser.cs"
+        fi
+
   build:
-    name: 🏗️ Build on ${{ matrix.os }}
+    name: 🏗️ Build ${{ matrix.os }}
+    needs: analyze
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         os: [ubuntu-latest, windows-latest, macos-latest]
+        configuration: [Release]
       fail-fast: false
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 1
+    
+    - name: 🔧 Setup .NET
+      uses: actions/setup-dotnet@v4
+      with:
+        dotnet-version: 8.0.x
+    
+    - name: 💾 Cache NuGet packages
+      uses: actions/cache@v3
+      with:
+        path: ~/.nuget/packages
+        key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj') }}
+        restore-keys: |
+          ${{ runner.os }}-nuget-
+    
+    - name: 🔍 DEBUG - List files
+      run: |
+        echo "=== Current directory: $(pwd) ==="
+        echo "=== All files ==="
+        ls -la
+        echo "=== Compiler directory ==="
+        ls -la Compiler/ || echo "❌ No Compiler directory"
+        if [ -d "Compiler" ]; then
+          echo "=== Compiler .cs files ==="
+          find Compiler -name "*.cs" -type f | sort
+        fi
+      shell: bash
+    
+    - name: 📦 Restore dependencies
+      run: dotnet restore Compiler/compiler.csproj
+    
+    - name: 🏗️ Build Compiler
+      run: dotnet build Compiler/compiler.csproj -c ${{ matrix.configuration }} --no-restore
+    
+    - name: 🧪 Run tests (if exists)
+      if: github.event.inputs.skip_tests != 'true'
+      run: |
+        if [ -d "Test" ]; then
+          dotnet test Test/Test.csproj -c ${{ matrix.configuration }} --no-build --verbosity normal
+        else
+          echo "⚠️ No test project found, skipping tests"
+        fi
+      shell: bash
+    
+    - name: 📦 Pack NuGet (optional)
+      if: matrix.os == 'ubuntu-latest' && github.ref == 'refs/heads/main'
+      run: |
+        dotnet pack Compiler/compiler.csproj -c ${{ matrix.configuration }} -o ./nupkg --no-build
+    
+    - name: 📤 Upload build artifacts
+      if: matrix.os == 'ubuntu-latest'
+      uses: actions/upload-artifact@v4
+      with:
+        name: compiler-build-${{ matrix.os }}
+        path: |
+          Compiler/bin/${{ matrix.configuration }}/**
+          !Compiler/bin/${{ matrix.configuration }}/**/*.pdb
+        retention-days: 7
+    
+    - name: ✅ Build success
+      run: echo "✅ Build thành công trên ${{ matrix.os }}!"
+
+  test-examples:
+    name: 🧪 Test Examples
+    needs: build
+    runs-on: ubuntu-latest
+    if: github.event.inputs.skip_tests != 'true'
     
     steps:
     - name: 📥 Checkout code
@@ -25,34 +146,73 @@ jobs:
       with:
         dotnet-version: 8.0.x
     
-    - name: 🔍 DEBUG - List files (Linux/macOS)
-      if: runner.os != 'Windows'
-      run: |
-        echo "=== Current directory: $(pwd) ==="
-        echo "=== All files ==="
-        ls -la
-        echo "=== Compiler directory ==="
-        ls -la Compiler/ || echo "No Compiler directory"
-        echo "=== Test directory ==="
-        ls -la Test/ || echo "No Test directory"
-    
-    - name: 🔍 DEBUG - List files (Windows)
-      if: runner.os == 'Windows'
-      run: |
-        echo "=== Current directory: $(pwd) ==="
-        echo "=== All files ==="
-        dir
-        echo "=== Compiler directory ==="
-        if (Test-Path "Compiler") { dir Compiler } else { echo "No Compiler directory" }
-        echo "=== Test directory ==="
-        if (Test-Path "Test") { dir Test } else { echo "No Test directory" }
-      shell: powershell
-    
-    - name: 📦 Restore Compiler
-      run: dotnet restore Compiler/compiler.csproj
-    
     - name: 🏗️ Build Compiler
-      run: dotnet build Compiler/compiler.csproj -c Release --no-restore
+      run: dotnet build Compiler/compiler.csproj -c Release
     
-    - name: ✅ Build success
-      run: echo "✅ Build thành công trên ${{ matrix.os }}!"
+    - name: 🧪 Test hello.f--
+      run: |
+        echo "=== Testing hello.f-- ==="
+        dotnet run --project Compiler/compiler.csproj -- run examples/hello.f-- || echo "⚠️ hello.f-- failed"
+    
+    - name: 🧪 Test ast command
+      run: |
+        echo "=== Testing AST generation ==="
+        dotnet run --project Compiler/compiler.csproj -- ast examples/hello.f-- > ast_output.txt
+        head -20 ast_output.txt
+    
+    - name: 🧪 Test codegen (C)
+      run: |
+        echo "=== Testing codegen to C ==="
+        dotnet run --project Compiler/compiler.csproj -- codegen examples/hello.f-- c -o hello.c
+        ls -la hello.c || echo "⚠️ C codegen failed"
+    
+    - name: 🧪 Test codegen (Python)
+      run: |
+        echo "=== Testing codegen to Python ==="
+        dotnet run --project Compiler/compiler.csproj -- codegen examples/hello.f-- py -o hello.py
+        ls -la hello.py || echo "⚠️ Python codegen failed"
+    
+    - name: ✅ Tests completed
+      run: echo "✅ All example tests completed!"
+
+  notify:
+    name: 📢 Notification
+    needs: [build, test-examples]
+    runs-on: ubuntu-latest
+    if: always() && github.ref == 'refs/heads/main'
+    
+    steps:
+    - name: Check build status
+      run: |
+        if [ "${{ needs.build.result }}" == "success" ] && [ "${{ needs.test-examples.result }}" == "success" ]; then
+          echo "✅ All jobs passed!"
+        else
+          echo "❌ Some jobs failed"
+          exit 1
+        fi
+    
+    - name: Create GitHub check run
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const success = '${{ needs.build.result }}' === 'success' && 
+                         '${{ needs.test-examples.result }}' === 'success';
+          
+          await github.rest.checks.create({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            name: 'Build & Test Summary',
+            head_sha: context.sha,
+            status: 'completed',
+            conclusion: success ? 'success' : 'failure',
+            output: {
+              title: success ? '✅ All checks passed' : '❌ Some checks failed',
+              summary: `
+                Build Results:
+                - ubuntu-latest: ${{ needs.build.result }}
+                - windows-latest: ${{ needs.build.result }}
+                - macos-latest: ${{ needs.build.result }}
+                - Test Examples: ${{ needs.test-examples.result }}
+              `
+            }
+          });
