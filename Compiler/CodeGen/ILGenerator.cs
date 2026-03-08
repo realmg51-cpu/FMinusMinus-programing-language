@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Reflection;
 using System.Reflection.Emit;
+using Fminusminus;
 using Fminusminus.Optimizer;
 
 namespace Fminusminus.CodeGen
@@ -15,21 +17,24 @@ namespace Fminusminus.CodeGen
     {
         private readonly ProgramNode _ast;
         private readonly string _outputPath;
-        private readonly AstOptimizer.OptimizationLevel _optLevel;
+        private readonly CodeGenerator.OptimizationLevel _optLevel;
         
         // Dynamic assembly
         private AssemblyBuilder _assemblyBuilder;
         private ModuleBuilder _moduleBuilder;
         private TypeBuilder _typeBuilder;
         private MethodBuilder _methodBuilder;
-        private ILGenerator _il;
+        private System.Reflection.Emit.ILGenerator _il;
         
         // Symbol table for variables
         private Dictionary<string, LocalBuilder> _locals = new();
         private Dictionary<string, FieldBuilder> _fields = new();
+        
+        // Helper fields
+        private LocalBuilder _arrayLocal;
 
         public ILGenerator(ProgramNode ast, string outputPath = "a.exe", 
-                          AstOptimizer.OptimizationLevel optLevel = AstOptimizer.OptimizationLevel.O1)
+                          CodeGenerator.OptimizationLevel optLevel = CodeGenerator.OptimizationLevel.O1)
         {
             _ast = ast;
             _outputPath = outputPath;
@@ -48,9 +53,9 @@ namespace Fminusminus.CodeGen
             {
                 // Apply optimizations if enabled
                 var optimizedAst = _ast;
-                if (_optLevel > AstOptimizer.OptimizationLevel.O0)
+                if (_optLevel > CodeGenerator.OptimizationLevel.O0)
                 {
-                    var optimizer = new AstOptimizer(_optLevel);
+                    var optimizer = new AstOptimizer((AstOptimizer.OptimizationLevel)_optLevel);
                     optimizedAst = optimizer.Optimize(_ast);
                 }
 
@@ -174,6 +179,14 @@ namespace Fminusminus.CodeGen
                 case ComputerStatementNode computer:
                     GenerateComputer(computer);
                     break;
+                    
+                case PackageCallNode pkg:
+                    GeneratePackageCall(pkg);
+                    break;
+                    
+                case AtBlockNode atBlock:
+                    GenerateAtBlock(atBlock);
+                    break;
             }
         }
 
@@ -188,15 +201,7 @@ namespace Fminusminus.CodeGen
             // Load string argument
             if (println.Expression is StringLiteralNode str)
             {
-                if (str.IsInterpolated)
-                {
-                    // Handle interpolation - for now, just use as is
-                    _il.Emit(OpCodes.Ldstr, InterpolateString(str.Value));
-                }
-                else
-                {
-                    _il.Emit(OpCodes.Ldstr, str.Value);
-                }
+                _il.Emit(OpCodes.Ldstr, str.Value);
             }
             else if (println.Expression is VariableNode var)
             {
@@ -204,10 +209,12 @@ namespace Fminusminus.CodeGen
                 if (_locals.TryGetValue(var.Name, out var local))
                 {
                     _il.Emit(OpCodes.Ldloc, local);
+                    // Ensure it's string
+                    var toString = typeof(object).GetMethod("ToString");
+                    _il.Emit(OpCodes.Callvirt, toString);
                 }
                 else
                 {
-                    // Assume string variable
                     _il.Emit(OpCodes.Ldstr, $"{{{var.Name}}}");
                 }
             }
@@ -252,24 +259,39 @@ namespace Fminusminus.CodeGen
         {
             if (!_locals.ContainsKey(assign.VariableName))
             {
-                // Create local variable
-                var local = _methodBuilder.GetILGenerator().DeclareLocal(typeof(string));
+                // Create local variable using existing ILGenerator
+                var local = _il.DeclareLocal(typeof(object));
                 _locals[assign.VariableName] = local;
             }
 
             var localVar = _locals[assign.VariableName];
 
-            if (assign.Value is StringLiteralNode str)
+            switch (assign.Value)
             {
-                _il.Emit(OpCodes.Ldstr, str.Value);
-                _il.Emit(OpCodes.Stloc, localVar);
+                case StringLiteralNode str:
+                    _il.Emit(OpCodes.Ldstr, str.Value);
+                    break;
+                    
+                case NumberLiteralNode num:
+                    _il.Emit(OpCodes.Ldc_R8, num.Value);
+                    _il.Emit(OpCodes.Box, typeof(double));
+                    break;
+                    
+                case BooleanLiteralNode boolVal:
+                    _il.Emit(boolVal.Value ? OpCodes.Ldc_I4_1 : OpCodes.Ldc_I4_0);
+                    _il.Emit(OpCodes.Box, typeof(bool));
+                    break;
+                    
+                case NullLiteralNode:
+                    _il.Emit(OpCodes.Ldnull);
+                    break;
+                    
+                default:
+                    _il.Emit(OpCodes.Ldstr, "");
+                    break;
             }
-            else if (assign.Value is NumberLiteralNode num)
-            {
-                // Convert number to string for simplicity
-                _il.Emit(OpCodes.Ldstr, num.Value.ToString());
-                _il.Emit(OpCodes.Stloc, localVar);
-            }
+            
+            _il.Emit(OpCodes.Stloc, localVar);
         }
 
         private void GenerateMemory(MemoryStatementNode memory)
@@ -279,81 +301,142 @@ namespace Fminusminus.CodeGen
                 new[] { typeof(string) }
             )!;
 
-            // Simulate memory info
-            string memoryInfo = memory.Property switch
-            {
-                "memoryleft" => $"Memory left: 1024 MB",
-                "memoryused" => $"Memory used: 256 MB",
-                "memorytotal" => $"Total memory: 1280 MB",
-                _ => "Unknown memory property"
-            };
-
-            _il.Emit(OpCodes.Ldstr, memoryInfo);
+            // Get real memory info using SystemInfo class
+            var getTotalMemory = typeof(GC).GetMethod("GetTotalMemory", new[] { typeof(bool) })!;
+            
+            _il.Emit(OpCodes.Ldc_I4_0); // false - don't force collection
+            _il.Emit(OpCodes.Call, getTotalMemory);
+            
+            // Format memory string
+            _il.Emit(OpCodes.Ldstr, "{0} bytes");
+            _il.Emit(OpCodes.Box, typeof(long));
+            var formatMethod = typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) })!;
+            _il.Emit(OpCodes.Call, formatMethod);
             _il.Emit(OpCodes.Call, consoleWriteLine);
         }
 
         private void GenerateIO(IOStatementNode io)
         {
-            var consoleWriteLine = typeof(Console).GetMethod(
-                "WriteLine", 
-                new[] { typeof(string) }
-            )!;
+            var consoleWriteLine = typeof(Console).GetMethod("WriteLine", new[] { typeof(string) })!;
+            var directoryGetFiles = typeof(Directory).GetMethod("GetFiles", new[] { typeof(string) })!;
+            var stringFormat = typeof(string).GetMethod("Format", new[] { typeof(string), typeof(object) })!;
 
-            switch (io.Operation)
+            switch (io.Operation.ToLower())
             {
-                case "cfile":
-                    _il.Emit(OpCodes.Ldstr, $"📁 Creating file...");
-                    _il.Emit(OpCodes.Call, consoleWriteLine);
-                    break;
-                    
-                case "save":
-                    _il.Emit(OpCodes.Ldstr, $"💾 File saved");
-                    _il.Emit(OpCodes.Call, consoleWriteLine);
-                    break;
-                    
                 case "listfile":
-                    _il.Emit(OpCodes.Ldstr, $"📂 Listing files...");
+                    _il.Emit(OpCodes.Ldstr, ".");
+                    _il.Emit(OpCodes.Call, directoryGetFiles);
+                    
+                    var filesArray = _il.DeclareLocal(typeof(string[]));
+                    _il.Emit(OpCodes.Stloc, filesArray);
+                    
+                    // Create index variable
+                    var index = _il.DeclareLocal(typeof(int));
+                    _il.Emit(OpCodes.Ldc_I4_0);
+                    _il.Emit(OpCodes.Stloc, index);
+                    
+                    var loopStart = _il.DefineLabel();
+                    var loopEnd = _il.DefineLabel();
+                    
+                    _il.MarkLabel(loopStart);
+                    
+                    // Check if index < array.Length
+                    _il.Emit(OpCodes.Ldloc, index);
+                    _il.Emit(OpCodes.Ldloc, filesArray);
+                    _il.Emit(OpCodes.Ldlen);
+                    _il.Emit(OpCodes.Conv_I4);
+                    _il.Emit(OpCodes.Bge, loopEnd);
+                    
+                    // Load and print file name
+                    _il.Emit(OpCodes.Ldloc, filesArray);
+                    _il.Emit(OpCodes.Ldloc, index);
+                    _il.Emit(OpCodes.Ldelem_Ref);
+                    
+                    _il.Emit(OpCodes.Ldstr, "  📄 {0}");
+                    _il.Emit(OpCodes.Ldloc, filesArray);
+                    _il.Emit(OpCodes.Ldloc, index);
+                    _il.Emit(OpCodes.Ldelem_Ref);
+                    _il.Emit(OpCodes.Call, stringFormat);
                     _il.Emit(OpCodes.Call, consoleWriteLine);
                     
-                    // Simple directory listing
-                    var files = Directory.GetFiles(".");
-                    foreach (var file in files)
-                    {
-                        _il.Emit(OpCodes.Ldstr, $"  📄 {Path.GetFileName(file)}");
-                        _il.Emit(OpCodes.Call, consoleWriteLine);
-                    }
+                    // index++
+                    _il.Emit(OpCodes.Ldloc, index);
+                    _il.Emit(OpCodes.Ldc_I4_1);
+                    _il.Emit(OpCodes.Add);
+                    _il.Emit(OpCodes.Stloc, index);
+                    
+                    _il.Emit(OpCodes.Br, loopStart);
+                    _il.MarkLabel(loopEnd);
+                    break;
+                    
+                default:
+                    _il.Emit(OpCodes.Ldstr, $"IO operation: {io.Operation}");
+                    _il.Emit(OpCodes.Call, consoleWriteLine);
                     break;
             }
         }
 
         private void GenerateComputer(ComputerStatementNode computer)
         {
-            var consoleWriteLine = typeof(Console).GetMethod(
-                "WriteLine", 
-                new[] { typeof(string) }
-            )!;
+            var consoleWriteLine = typeof(Console).GetMethod("WriteLine", new[] { typeof(string) })!;
 
-            if (computer.Property == "systeminfo" && computer.Operation == "get")
+            if (computer.Property == "systeminfo")
             {
+                // OS Version
                 _il.Emit(OpCodes.Ldstr, $"OS: {Environment.OSVersion}");
                 _il.Emit(OpCodes.Call, consoleWriteLine);
                 
+                // Machine Name
                 _il.Emit(OpCodes.Ldstr, $"Machine: {Environment.MachineName}");
                 _il.Emit(OpCodes.Call, consoleWriteLine);
                 
+                // Processor Count
                 _il.Emit(OpCodes.Ldstr, $"CPU Cores: {Environment.ProcessorCount}");
                 _il.Emit(OpCodes.Call, consoleWriteLine);
                 
+                // .NET Version
                 _il.Emit(OpCodes.Ldstr, $".NET: {Environment.Version}");
+                _il.Emit(OpCodes.Call, consoleWriteLine);
+            }
+            else
+            {
+                _il.Emit(OpCodes.Ldstr, $"Computer.{computer.Property}");
                 _il.Emit(OpCodes.Call, consoleWriteLine);
             }
         }
 
-        private string InterpolateString(string template)
+        private void GeneratePackageCall(PackageCallNode pkg)
         {
-            // Simple interpolation - replace {var} with actual values
-            // In real implementation, would need proper variable resolution
-            return template.Replace("{", "").Replace("}", "");
+            var consoleWriteLine = typeof(Console).GetMethod("WriteLine", new[] { typeof(string) })!;
+            
+            _il.Emit(OpCodes.Ldstr, $"📦 Calling {pkg.PackageName}.{pkg.MethodName}()");
+            _il.Emit(OpCodes.Call, consoleWriteLine);
+            
+            foreach (var arg in pkg.Arguments)
+            {
+                if (arg is StringLiteralNode str)
+                {
+                    _il.Emit(OpCodes.Ldstr, $"   Arg: {str.Value}");
+                    _il.Emit(OpCodes.Call, consoleWriteLine);
+                }
+            }
+        }
+
+        private void GenerateAtBlock(AtBlockNode atBlock)
+        {
+            var consoleWriteLine = typeof(Console).GetMethod("WriteLine", new[] { typeof(string) })!;
+            
+            if (atBlock.FileName is StringLiteralNode str)
+            {
+                _il.Emit(OpCodes.Ldstr, $"📌 Executing block from: {str.Value}");
+                _il.Emit(OpCodes.Call, consoleWriteLine);
+            }
+            
+            // Generate statements in the block
+            foreach (var stmt in atBlock.Statements)
+            {
+                GenerateStatement(stmt);
+            }
         }
     }
 }
