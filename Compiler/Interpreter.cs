@@ -62,7 +62,9 @@ namespace Fminusminus
             catch (SyntaxError ex)
             {
                 _errors.Add(ex);
-                throw new AggregateException("Parser errors occurred", _errors);
+                if (_errors.Count > 1)
+                    throw new AggregateException($"Found {_errors.Count} syntax errors", _errors);
+                throw;
             }
             
             return program;
@@ -89,28 +91,33 @@ namespace Fminusminus
             if (!Match(TokenType.RBRACE))
                 throw SyntaxError.MissingToken(Peek().Line, Peek().Column, "}");
             
-            // Check for required return statement
+            // Check for required statements
             bool hasReturn = false;
+            bool hasEnd = false;
+            
             foreach (var stmt in block.Statements)
             {
                 if (stmt is ReturnStatementNode)
-                {
                     hasReturn = true;
-                    break;
-                }
+                if (stmt is EndStatementNode)
+                    hasEnd = true;
             }
             
             if (!hasReturn)
                 throw SyntaxError.MissingToken(Peek().Line, Peek().Column, "return()");
             
+            if (!hasEnd)
+                throw SyntaxError.MissingToken(Peek().Line, Peek().Column, "end()");
+            
             block.HasReturn = hasReturn;
+            block.HasEnd = hasEnd;
             
             return block;
         }
 
         private void SkipCommentsAndNewlines()
         {
-            while (true)
+            while (!IsAtEnd())
             {
                 if (Match(TokenType.NEWLINE))
                     continue;
@@ -141,6 +148,9 @@ namespace Fminusminus
                     case TokenType.RETURN:
                         return ParseReturn();
                         
+                    case TokenType.END:
+                        return ParseEnd();
+                        
                     case TokenType.IDENTIFIER:
                         // Check if it's a package call (identifier.identifier)
                         if (PeekNext().Type == TokenType.DOT)
@@ -151,6 +161,15 @@ namespace Fminusminus
                         
                     case TokenType.AT:
                         return ParseAtBlock();
+                        
+                    case TokenType.IO:
+                        return ParseIOStatement();
+                        
+                    case TokenType.COMPUTER:
+                        return ParseComputerStatement();
+                        
+                    case TokenType.MEMORY:
+                        return ParseMemoryStatement();
                         
                     case TokenType.COMMENT:
                         Advance();
@@ -210,6 +229,9 @@ namespace Fminusminus
             
             if (Check(TokenType.NUMBER))
             {
+                if (Peek().Literal == null)
+                    throw SyntaxError.MissingToken(Peek().Line, Peek().Column, "number value");
+                    
                 node.ReturnCode = Convert.ToInt32(Peek().Literal);
                 Advance();
             }
@@ -224,9 +246,23 @@ namespace Fminusminus
             return node;
         }
 
-        private ComputerCallNode ParsePackageCall()
+        private EndStatementNode ParseEnd()
         {
-            var node = new ComputerCallNode();
+            Advance();
+            var node = new EndStatementNode();
+            
+            if (!Match(TokenType.LPAREN))
+                throw SyntaxError.MissingToken(Previous().Line, Previous().Column + 3, "(");
+            
+            if (!Match(TokenType.RPAREN))
+                throw SyntaxError.MissingToken(Previous().Line, Previous().Column + 1, ")");
+            
+            return node;
+        }
+
+        private PackageCallNode ParsePackageCall()
+        {
+            var node = new PackageCallNode();
             
             // Package name
             node.PackageName = Peek().Lexeme;
@@ -251,7 +287,11 @@ namespace Fminusminus
             {
                 while (!Check(TokenType.RPAREN) && !IsAtEnd())
                 {
-                    node.Arguments.Add(ParseExpression()!);
+                    var expr = ParseExpression();
+                    if (expr == null)
+                        throw SyntaxError.MissingToken(Peek().Line, Peek().Column, "expression");
+                        
+                    node.Arguments.Add(expr);
                     Match(TokenType.COMMA);
                 }
                 
@@ -310,6 +350,98 @@ namespace Fminusminus
             return node;
         }
 
+        private IOStatementNode ParseIOStatement()
+        {
+            Advance();
+            var node = new IOStatementNode();
+            
+            if (!Match(TokenType.DOT))
+                throw SyntaxError.MissingToken(Previous().Line, Previous().Column + 2, ".");
+            
+            if (Check(TokenType.IDENTIFIER))
+            {
+                node.Operation = Peek().Lexeme;
+                Advance();
+            }
+            else
+            {
+                throw SyntaxError.MissingToken(Peek().Line, Peek().Column, "operation");
+            }
+            
+            if (Match(TokenType.LPAREN))
+            {
+                while (!Check(TokenType.RPAREN) && !IsAtEnd())
+                {
+                    var expr = ParseExpression();
+                    if (expr == null)
+                        throw SyntaxError.MissingToken(Peek().Line, Peek().Column, "expression");
+                        
+                    node.Parameters.Add(expr);
+                    Match(TokenType.COMMA);
+                }
+                
+                if (!Match(TokenType.RPAREN))
+                    throw SyntaxError.MissingToken(Previous().Line, Previous().Column + 1, ")");
+            }
+            
+            return node;
+        }
+
+        private ComputerStatementNode ParseComputerStatement()
+        {
+            Advance();
+            var node = new ComputerStatementNode();
+            
+            if (!Match(TokenType.DOT))
+                throw SyntaxError.MissingToken(Previous().Line, Previous().Column + 8, ".");
+            
+            if (Check(TokenType.IDENTIFIER))
+            {
+                node.Property = Peek().Lexeme;
+                Advance();
+                
+                // Optional operation
+                if (Match(TokenType.LPAREN))
+                {
+                    if (Check(TokenType.IDENTIFIER))
+                    {
+                        node.Operation = Peek().Lexeme;
+                        Advance();
+                    }
+                    
+                    if (!Match(TokenType.RPAREN))
+                        throw SyntaxError.MissingToken(Previous().Line, Previous().Column + 1, ")");
+                }
+            }
+            else
+            {
+                throw SyntaxError.MissingToken(Peek().Line, Peek().Column, "property");
+            }
+            
+            return node;
+        }
+
+        private MemoryStatementNode ParseMemoryStatement()
+        {
+            Advance();
+            var node = new MemoryStatementNode();
+            
+            if (!Match(TokenType.DOT))
+                throw SyntaxError.MissingToken(Previous().Line, Previous().Column + 6, ".");
+            
+            if (Check(TokenType.IDENTIFIER))
+            {
+                node.Property = Peek().Lexeme;
+                Advance();
+            }
+            else
+            {
+                throw SyntaxError.MissingToken(Peek().Line, Peek().Column, "property");
+            }
+            
+            return node;
+        }
+
         private ExpressionNode? ParseExpression()
         {
             if (Check(TokenType.STRING))
@@ -334,8 +466,11 @@ namespace Fminusminus
             
             if (Check(TokenType.NUMBER))
             {
+                if (Peek().Literal == null)
+                    throw SyntaxError.MissingToken(Peek().Line, Peek().Column, "number value");
+                    
                 var node = new NumberLiteralNode { 
-                    Value = Convert.ToDouble(Peek().Literal ?? 0)
+                    Value = Convert.ToDouble(Peek().Literal)
                 };
                 Advance();
                 return node;
@@ -377,9 +512,24 @@ namespace Fminusminus
         }
 
         private bool Check(TokenType type) => !IsAtEnd() && Peek().Type == type;
+        
         private Token Peek() => _tokens[_current];
-        private Token PeekNext() => _current + 1 < _tokens.Count ? _tokens[_current + 1] : _tokens[^1];
-        private Token Previous() => _tokens[_current - 1];
+        
+        private Token PeekNext() 
+        {
+            int nextIndex = _current + 1;
+            if (nextIndex < _tokens.Count)
+                return _tokens[nextIndex];
+            return _tokens[_current];
+        }
+        
+        private Token Previous() 
+        { 
+            if (_current == 0) 
+                throw new InvalidOperationException("Cannot get previous token at start of stream");
+            return _tokens[_current - 1]; 
+        }
+        
         private bool IsAtEnd() => Peek().Type == TokenType.EOF;
         
         private Token Advance()
