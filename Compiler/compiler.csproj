@@ -7,7 +7,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     
-    <!-- 🟢 FIX 1: Tắt implicit includes để tránh duplicate items -->
+    <!-- 🟢 QUAN TRỌNG: Tắt implicit includes để tránh duplicate items -->
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <EnableDefaultEmbeddedResourceItems>false</EnableDefaultEmbeddedResourceItems>
     <EnableDefaultNoneItems>false</EnableDefaultNoneItems>
@@ -16,7 +16,7 @@
     <AssemblyName>fminus</AssemblyName>
     <RootNamespace>Fminusminus</RootNamespace>
     
-    <!-- 🟢 FIX 2: Version đúng format -->
+    <!-- Version đúng format theo semantic versioning -->
     <Version>2.0.0-alpha1</Version>
     <FileVersion>2.0.0.0</FileVersion>
     <InformationalVersion>2.0.0-alpha1</InformationalVersion>
@@ -38,18 +38,66 @@
     <CheckForOverflowUnderflow>true</CheckForOverflowUnderflow>
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     
-    <!-- 🟢 FIX 3: Output paths không có trailing slash -->
+    <!-- Output paths (không có trailing slash) -->
     <BaseOutputPath>bin</BaseOutputPath>
     <BaseIntermediateOutputPath>obj</BaseIntermediateOutputPath>
   </PropertyGroup>
 
   <!-- 
-    ⭐ Include tất cả file .cs trong tất cả thư mục con 
-    Sử dụng wildcard ** thoải mái thêm file không cần sửa csproj
+    ⭐ CHỈ INCLUDE CÁC FILE CỤ THỂ - Tránh duplicate members 
+    Đây là cách an toàn nhất để tránh lỗi "Type already defines a member"
   -->
   <ItemGroup>
-    <!-- Include tất cả file .cs trong thư mục gốc và các thư mục con -->
-    <Compile Include="**/*.cs" Exclude="**/obj/**/*.cs;**/bin/**/*.cs" />
+    <!-- Code Generator -->
+    <Compile Include="CodeGen/CodeGenerator.cs" />
+    <Compile Include="CodeGen/CodeGenDriver.cs" />
+    <Compile Include="CodeGen/ILGenerator.cs" />
+    
+    <!-- Errors -->
+    <Compile Include="Errors/FileError.cs" />
+    <Compile Include="Errors/SecureErrorHandler.cs" />
+    <Compile Include="Errors/SyntaxError.cs" />
+    
+    <!-- Main Program -->
+    <Compile Include="Main/Program.cs" />
+    
+    <!-- Commands -->
+    <Compile Include="Main/Commands/AstCommand.cs" />
+    <Compile Include="Main/Commands/CodeGenCommand.cs" />
+    <Compile Include="Main/Commands/CompileCommand.cs" />
+    <Compile Include="Main/Commands/HelpCommand.cs" />
+    <Compile Include="Main/Commands/RunCommand.cs" />
+    <Compile Include="Main/Commands/VersionCommand.cs" />
+    
+    <!-- UI -->
+    <Compile Include="Main/UI/ErrorHandler.cs" />
+    <Compile Include="Main/UI/Logo.cs" />
+    
+    <!-- Core Compiler -->
+    <Compile Include="Interpreter.cs" />
+    <Compile Include="Lexer.cs" />
+    <Compile Include="Parser.cs" />
+    
+    <!-- AST Nodes -->
+    <Compile Include="Nodes/AstNode.cs" />
+    <Compile Include="Nodes/IOListNode.cs" />
+    
+    <!-- Optimizer -->
+    <Compile Include="Optimizer/AstOptimizer.cs" />
+    
+    <!-- Utils -->
+    <Compile Include="Utils/SystemInfo.cs" />
+    
+    <!-- Package System -->
+    <Compile Include="Utils/Package/BasePackage.cs" />
+    <Compile Include="Utils/Package/ComputerPackage.cs" />
+    <Compile Include="Utils/Package/DictionaryPackage.cs" />
+    <Compile Include="Utils/Package/IOPackage.cs" />
+    <Compile Include="Utils/Package/MemoryPackage.cs" />
+    <Compile Include="Utils/Package/PackageManager.cs" />
+    
+    <!-- Security -->
+    <Compile Include="Utils/Security/SecurePath.cs" />
     
     <!-- Resources -->
     <EmbeddedResource Include="Resources/**/*" />
@@ -96,7 +144,7 @@
 
   <!-- 
     ⭐ Copy examples vào output để dễ test 
-    🟢 FIX 4: Thêm kiểm tra file tồn tại
+    Kiểm tra file tồn tại trước khi copy
   -->
   <Target Name="CopyExamples" AfterTargets="Build" Condition="Exists('..\examples')">
     <ItemGroup>
@@ -110,13 +158,15 @@
 
   <!-- 
     ⭐ Tạo file .rsp để chạy với nhiều tham số 
-    🟢 FIX 5: Thêm định nghĩa cho FminusCommandLine
   -->
   <ItemGroup>
     <FminusCommandLine Include="--help" />
     <FminusCommandLine Include="--version" />
     <FminusCommandLine Include="run examples/hello.f--" />
     <FminusCommandLine Include="build examples/hello.f--" />
+    <FminusCommandLine Include="ast examples/hello.f--" />
+    <FminusCommandLine Include="codegen examples/hello.f-- c" />
+    <FminusCommandLine Include="compile examples/hello.f--" />
   </ItemGroup>
 
   <Target Name="GenerateRspFile" AfterTargets="Build">
@@ -141,15 +191,7 @@
   </Target>
 
   <!-- 
-    ⭐ Package references - nếu cần thêm thư viện bên ngoài 
-  -->
-  <ItemGroup>
-    <!-- Không có dependencies bên ngoài tự chủ! -->
-  </ItemGroup>
-
-  <!-- 
     ⭐ SourceLink cho debugging 
-    🟢 FIX 6: Sửa version đúng và đặt trong ItemGroup riêng với Condition
   -->
   <PropertyGroup>
     <PublishRepositoryUrl>true</PublishRepositoryUrl>
@@ -158,8 +200,8 @@
   </PropertyGroup>
 
   <ItemGroup Condition="'$(Configuration)' == 'Release'">
-    <!-- 🟢 FIX: Dùng version 1.1.1 thay vì 8.0.0 -->
-    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
+    <!-- SourceLink GitHub - version chính xác -->
+    <PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="All" />
   </ItemGroup>
 
   <!-- 
@@ -168,6 +210,21 @@
   <Target Name="FMinusClean" AfterTargets="Clean">
     <RemoveDir Directories="$(OutputPath)examples" Condition="Exists('$(OutputPath)examples')" />
     <Delete Files="$(OutputPath)fminus.rsp" Condition="Exists('$(OutputPath)fminus.rsp')" />
+  </Target>
+
+  <!-- 
+    ⭐ Kiểm tra duplicate files (chạy trong CI)
+  -->
+  <Target Name="CheckDuplicateFiles" BeforeTargets="Build" Condition="'$(CI)' == 'true'">
+    <Exec Command="echo Kiểm tra duplicate files..." />
+    <Exec Command="find Compiler -name &quot;Parser.cs&quot; -type f | sort | uniq -d" 
+          Condition="'$(OS)' != 'Windows_NT'" 
+          IgnoreExitCode="true" 
+          ContinueOnError="true" />
+    <Exec Command="dir /s /b Compiler\Parser.cs | sort" 
+          Condition="'$(OS)' == 'Windows_NT'" 
+          IgnoreExitCode="true" 
+          ContinueOnError="true" />
   </Target>
 
 </Project>
